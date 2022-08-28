@@ -37,19 +37,6 @@ const Adding = ({ navigation }) => {
     hideDatePicker();
   };
 
-  const publishScrims = async () => {
-    await addDoc(collection(db, "users", ids, "games"), {
-      name: name,
-      region: region,
-      date: fullDate,
-      teamName: teamName,
-    });
-    setName("");
-    setFullDate("");
-    setRegion("");
-    setTeamName("");
-    navigation.goBack();
-  };
   return (
     <ScrollView
       style={{

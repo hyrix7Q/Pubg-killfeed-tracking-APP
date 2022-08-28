@@ -12,10 +12,11 @@ import React, { useState } from "react";
 import Modal from "react-native-modal";
 import { addDoc, collection, doc, setDoc, updateDoc } from "firebase/firestore";
 import { db, storage } from "../firebase/firebaseConfig";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import * as ImagePicker from "expo-image-picker";
 import uuid from "react-native-uuid";
 import { ref, uploadBytes, listAll, getDownloadURL } from "firebase/storage";
+import { addGame } from "../store/actions";
 
 const TeamAdding = ({ route, navigation }) => {
   const [teams, setTeams] = useState([]);
@@ -27,6 +28,7 @@ const TeamAdding = ({ route, navigation }) => {
   const [player4, setPlayer4] = useState("Player 4");
   const [isUploading, setIsUploading] = useState(false);
   const [imagePicked, setImagePicked] = useState();
+  const dispatch = useDispatch();
 
   const { infos } = route.params;
   const ids = useSelector((state) => state.userInfos.id);
@@ -47,117 +49,16 @@ const TeamAdding = ({ route, navigation }) => {
     }
   };
 
-  const uploadImage = async (gameId, teamId, uri, TeamName) => {
-    const idGenerated = uuid.v4();
-    const img = await fetch(uri);
-    const bytes = await img.blob();
-    uploadBytes(
-      ref(
-        storage,
-        `${ids}/games/${gameId}/teams/${TeamName}/logo/${idGenerated}.jpg`
-      ),
-      bytes
-    ).then(async () => {
-      listAll(
-        ref(storage, `${ids}/games/${gameId}/teams/${TeamName}/logo`)
-      ).then((res) => {
-        res.items.forEach((item) => {
-          getDownloadURL(item).then(async (url) => {
-            await updateDoc(
-              doc(db, "users", ids, "games", gameId, "teams", teamId),
-              {
-                logo: url,
-              }
-            );
-            await updateDoc(
-              doc(db, "users", ids, "games", gameId, "teamsToEdit", teamId),
-              {
-                logo: url,
-              }
-            );
-          });
-        });
-      });
-    });
-  };
-
   const onSave = async () => {
-    setIsUploading(true);
-    const addedGame = await addDoc(collection(db, "users", ids, "games"), {
+    let games = {
+      date: new Date(),
       name: infos.name,
       region: infos.region,
-      date: infos.fullDate,
-    });
-    console.log("fdvcc");
-
-    await Promise.all(
-      teams.map(async (team, index) => {
-        const addedTeam = await addDoc(
-          collection(db, "users", ids, "games", addedGame.id, "teams"),
-          { teamName: team.teamName }
-        );
-
-        team.players.map(async (player) => {
-          const addedPlayer = await addDoc(
-            collection(
-              db,
-              "users",
-              ids,
-              "games",
-              addedGame.id,
-              "teams",
-              addedTeam.id,
-              "players"
-            ),
-            {
-              player,
-            }
-          );
-          await setDoc(
-            doc(
-              db,
-              "users",
-              ids,
-              "games",
-              addedGame.id,
-              "teamsToEdit",
-              addedTeam.id,
-              "players",
-              addedPlayer.id
-            ),
-            {
-              player,
-            }
-          );
-        });
-
-        await setDoc(
-          doc(
-            db,
-            "users",
-            ids,
-            "games",
-            addedGame.id,
-            "teamsToEdit",
-            addedTeam.id
-          ),
-          { teamName: team.teamName }
-        ).then(async () => {
-          if (team.uri) {
-            await uploadImage(
-              addedGame.id,
-              addedTeam.id,
-              team.uri,
-              team.teamName
-            );
-          }
-        });
-      })
-    ).then(() => {
-      setIsUploading(false);
-      navigation.replace("Adding");
-      navigation.navigate("Home");
-    });
+      teams,
+    };
+    dispatch(addGame(games));
+    navigation.replace("Adding");
+    navigation.navigate("Home");
   };
 
   return (
@@ -173,7 +74,7 @@ const TeamAdding = ({ route, navigation }) => {
       ) : (
         <TouchableOpacity
           style={{ paddingHorizontal: 20 }}
-          disabled={!teams.length === 0}
+          // disabled={!teams.length === 0}
         >
           <Text
             style={{

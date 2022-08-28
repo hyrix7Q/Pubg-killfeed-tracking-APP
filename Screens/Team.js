@@ -10,70 +10,25 @@ import React, { useState } from "react";
 
 import { collection, deleteDoc, doc, getDocs } from "firebase/firestore";
 import { db } from "../firebase/firebaseConfig";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import Modal from "react-native-modal";
+import { deleteTeam, killPlayer } from "../store/actions";
 
-const Team = ({ game, team, toChange }) => {
+const Team = ({ game, team, toChange, index, setPlayerKill, indexGame }) => {
   const [onDeleting, setOnDeleting] = useState(false);
   const [modalVisibility, setModalVisibility] = useState(false);
   const [imagePicked, setImagePicked] = useState();
-
+  const dispatch = useDispatch();
   const ids = useSelector((state) => state.userInfos.id);
 
   const playerDead = async (playerId, teamId) => {
-    setOnDeleting(true);
-    await deleteDoc(
-      doc(
-        db,
-        "users",
-        ids,
-        "games",
-        game.gameId,
-        "teamsToEdit",
-        teamId,
-        "players",
-        playerId
-      )
-    );
-    let counter = 0;
-    const docRef = collection(
-      db,
-      "users",
-      ids,
-      "games",
-      game.gameId,
-      "teamsToEdit",
-      teamId,
-      "players"
-    );
-    const snap = await getDocs(docRef);
-
-    snap.forEach((player) => {
-      counter++;
-    });
-
-    if (counter === 0) {
-      await deleteDoc(
-        doc(db, "users", ids, "games", game.gameId, "teamsToEdit", teamId)
-      );
-      toChange(new Date());
-      setOnDeleting(false);
-    } else {
-      toChange(new Date());
-      setOnDeleting(false);
-    }
+    dispatch(killPlayer(playerId, index, indexGame));
   };
 
-  const deleteTeam = async (teamId) => {
-    await deleteDoc(
-      doc(db, "users", ids, "games", game.gameId, "teamsToEdit", teamId)
-    )
-      .then(() => {
-        toChange(new Date());
-      })
-      .then(() => {
-        setModalVisibility(false);
-      });
+  const deleteTeamFun = async (teamId) => {
+    dispatch(deleteTeam(indexGame, index));
+    setPlayerKill(new Date());
+    setModalVisibility(false);
   };
 
   return (
@@ -110,11 +65,7 @@ const Team = ({ game, team, toChange }) => {
         }}
       >
         <Image
-          source={
-            team.teamLogo
-              ? { uri: team.teamLogo }
-              : require("../assets/team.png")
-          }
+          source={team.uri ? { uri: team.uri } : require("../assets/team.png")}
           style={{
             height: "100%",
             width: "100%",
@@ -193,7 +144,7 @@ const Team = ({ game, team, toChange }) => {
                 `Are you sure you want to delete ${team.teamName}`,
                 "!!",
                 [
-                  { text: "Yes", onPress: () => deleteTeam(team.teamId) },
+                  { text: "Yes", onPress: () => deleteTeamFun(team.teamId) },
                   { text: "No", onPress: () => setModalVisibility(false) },
                 ]
               );

@@ -21,6 +21,7 @@ const NavigationContainerStack = () => {
         if (value !== null) {
           console.log(value);
           dispatch(getUserInfos(value));
+          console.log("hhh");
           setValueFound(true);
         } else {
           console.log("hhhhh");

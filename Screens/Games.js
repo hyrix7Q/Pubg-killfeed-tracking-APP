@@ -19,12 +19,13 @@ import {
   setDoc,
 } from "firebase/firestore";
 import { db } from "../firebase/firebaseConfig";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import Team from "./Team";
 import Modal from "react-native-modal";
+import { addTeam, putInfos, resetGame } from "../store/actions";
 
 const Games = ({ route }) => {
-  const { game } = route.params;
+  const { game, indexGame } = route.params;
   const [finalTeams, setFinalTeams] = useState();
   const [change, setChange] = useState();
   const [showModal, setShowModal] = useState(false);
@@ -34,203 +35,34 @@ const Games = ({ route }) => {
   const [player2, setPlayer2] = useState("Player 2");
   const [player3, setPlayer3] = useState("Player 3");
   const [player4, setPlayer4] = useState("Player 4");
+  const [gameInfoss, setGameInfos] = useState();
+  const [playerKill, setPlayerKill] = useState();
+  // const gameInfos = useSelector((state) => state.games.games);
+  const gamesInfos = useSelector((state) => state.games.games);
   const ids = useSelector((state) => state.userInfos.id);
-
+  const dispatch = useDispatch();
   const toChange = (data) => {
     setChange(data);
   };
-
-  const getData = async () => {
-    let teams = [];
-
-    const docRef = collection(
-      db,
-      "users",
-      ids,
-      "games",
-      game.gameId,
-      "teamsToEdit"
-    );
-    const snapshot = await getDocs(docRef);
-    await Promise.all(
-      snapshot.docs.map(async (team) => {
-        let players = [];
-        const snapInside = await getDocs(
-          collection(
-            db,
-            "users",
-            ids,
-            "games",
-            game.gameId,
-            "teamsToEdit",
-            team.id,
-            "players"
-          )
-        );
-        snapInside.docs.map((player) => {
-          players.push({ playerId: player.id, ...player.data() });
-        });
-        teams.push({
-          teamId: team.id,
-          teamName: team.data().teamName,
-          teamLogo: team.data().logo,
-          players: players,
-        });
-      })
-    );
-    return teams;
+  const playerKilled = (data) => {
+    setPlayerKill(data);
   };
-
-  useEffect(() => {
-    getData().then((res) => {
-      setFinalTeams(res);
-    });
-  }, [change]);
 
   const onReset = async () => {
-    setOnReseting(true);
-    const docRef = collection(db, "users", ids, "games", game.gameId, "teams");
-    const snapshot = await getDocs(docRef);
-
-    await Promise.all(
-      snapshot.docs.map(async (team) => {
-        const docRefTwo = doc(
-          db,
-          "users",
-          ids,
-          "games",
-          game.gameId,
-          "teamsToEdit",
-          team.id
-        );
-        const snaptwo = await getDoc(docRefTwo);
-        if (!snaptwo.exists()) {
-          await setDoc(
-            doc(db, "users", ids, "games", game.gameId, "teamsToEdit", team.id),
-            {
-              teamName: team.data().teamName,
-            }
-          );
-        }
-
-        let players = [];
-        const snapInside = await getDocs(
-          collection(
-            db,
-            "users",
-            ids,
-            "games",
-            game.gameId,
-            "teams",
-            team.id,
-            "players"
-          )
-        );
-
-        await Promise.all(
-          snapInside.docs.map(async (player) => {
-            let playerSnap = await getDoc(
-              doc(
-                db,
-                "users",
-                ids,
-                "games",
-                game.gameId,
-                "teamsToEdit",
-                team.id,
-                "players",
-                player.id
-              )
-            );
-            if (!playerSnap.exists()) {
-              console.log("CFSQCSQ");
-              await setDoc(
-                doc(
-                  db,
-                  "users",
-                  ids,
-                  "games",
-                  game.gameId,
-                  "teamsToEdit",
-                  team.id,
-                  "players",
-                  player.id
-                ),
-                {
-                  player: "Player",
-                }
-              );
-            }
-          })
-        );
-      })
-    ).then(() => {
-      getData()
-        .then((res) => {
-          setFinalTeams(res);
-        })
-        .then(() => {
-          setOnReseting(false);
-        });
-    });
+    dispatch(resetGame(indexGame));
+    setPlayerKill(new Date());
   };
 
-  const addTeam = async () => {
-    const addedTeam = await addDoc(
-      collection(db, "users", ids, "games", game.gameId, "teams"),
-      { teamName: teamName }
+  const addTeamFunc = async () => {
+    dispatch(
+      addTeam(
+        {
+          teamName,
+          players: ["Player 1", "Player 2", "Player 3", "Player 4"],
+        },
+        indexGame
+      )
     );
-    let array = [player1, player2, player3, player4];
-    await Promise.all(
-      array.map(async (player) => {
-        const addedPlayer = await addDoc(
-          collection(
-            db,
-            "users",
-            ids,
-            "games",
-            game.gameId,
-            "teams",
-            addedTeam.id,
-            "players"
-          ),
-          {
-            player,
-          }
-        );
-        await setDoc(
-          doc(
-            db,
-            "users",
-            ids,
-            "games",
-            game.gameId,
-            "teamsToEdit",
-            addedTeam.id,
-            "players",
-            addedPlayer.id
-          ),
-          {
-            player,
-          }
-        );
-        await setDoc(
-          doc(
-            db,
-            "users",
-            ids,
-            "games",
-            game.gameId,
-            "teamsToEdit",
-            addedTeam.id
-          ),
-          { teamName: teamName }
-        );
-      })
-    );
-    getData().then((res) => {
-      setFinalTeams(res);
-    });
   };
 
   return (
@@ -248,11 +80,19 @@ const Games = ({ route }) => {
         </Text>
       </TouchableOpacity>
       <View style={{ flex: 1, paddingBottom: 20 }}>
-        {finalTeams?.map((team, index) =>
+        {gamesInfos[indexGame].teams?.map((team, index) =>
           onReseting ? (
             <ActivityIndicator size="large" color="#C88E00" />
           ) : (
-            <Team key={index} team={team} game={game} toChange={toChange} />
+            <Team
+              key={index}
+              index={index}
+              indexGame={indexGame}
+              team={team}
+              game={game}
+              toChange={toChange}
+              setPlayerKill={setPlayerKill}
+            />
           )
         )}
 
@@ -397,7 +237,7 @@ const Games = ({ route }) => {
               justifyContent: "center",
             }}
             onPress={() => {
-              addTeam();
+              addTeamFunc();
 
               setShowModal(false);
             }}

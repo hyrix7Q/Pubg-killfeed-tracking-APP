@@ -22,38 +22,23 @@ import { db } from "../firebase/firebaseConfig";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useDispatch, useSelector } from "react-redux";
 import Modal from "react-native-modal";
+import { deleteGame } from "../store/actions";
 
 const Home = ({ navigation }) => {
   const [id, setId] = useState();
   const [games, setGames] = useState();
   const [modalVisibility, setModalVisibility] = useState(false);
   const [gameToBeDeleted, setGameToBeDeleted] = useState();
-
+  const gamesInfos = useSelector((state) => state.games.games);
   const dispatch = useDispatch();
   const ids = useSelector((state) => state.userInfos.id);
+  const onDelete = async (gameIndex) => {
+    dispatch(deleteGame(gameIndex));
 
-  useEffect(() => {
-    const unsubscribe = onSnapshot(
-      collection(db, "users", ids, "games"),
-      (doc) => {
-        let games = [];
-        doc.forEach((doc) => {
-          console.log(doc.data());
-          games.push({ gameId: doc.id, ...doc.data() });
-        });
-        setGames(games);
-      }
-    );
-    return unsubscribe;
-  }, []);
-
-  const onDelete = async (gameId) => {
-    const docRef = doc(db, "users", ids, "games", gameId);
-    await deleteDoc(docRef);
     setGameToBeDeleted();
     setModalVisibility(false);
   };
-
+  console.log(gamesInfos);
   return (
     <View style={styles.container}>
       <View
@@ -78,10 +63,10 @@ const Home = ({ navigation }) => {
           Pubg Killfeed Tracking
         </Text>
       </View>
-      {games?.map((game, index) => (
+      {gamesInfos?.map((game, index) => (
         <TouchableOpacity
           onLongPress={() => {
-            setGameToBeDeleted({ gameName: game.name, gameId: game.gameId });
+            setGameToBeDeleted({ gameIndex: index });
             setModalVisibility(true);
           }}
           style={{
@@ -90,7 +75,8 @@ const Home = ({ navigation }) => {
             paddingHorizontal: 20,
           }}
           onPress={() => {
-            navigation.navigate("Games", { game });
+            console.log("INDEEEX", index);
+            navigation.navigate("Games", { game, indexGame: index });
           }}
         >
           <ImageBackground
@@ -136,7 +122,7 @@ const Home = ({ navigation }) => {
                 <Text
                   style={{ color: "white", fontSize: 18, fontWeight: "bold" }}
                 >
-                  {new Date(game?.date.toDate()).toUTCString()}
+                  {game?.date.substring(0, 19)}
                 </Text>
               </View>
             </View>
@@ -173,8 +159,7 @@ const Home = ({ navigation }) => {
                       {
                         text: "Yes",
                         onPress: () => {
-                          console.log("gdsgsd", gameToBeDeleted.gameId);
-                          onDelete(gameToBeDeleted.gameId);
+                          onDelete(gameToBeDeleted.gameIndex);
                         },
                       },
                       { text: "No", onPress: () => setModalVisibility(false) },
